@@ -557,11 +557,11 @@ custom_messages() {
       echo -e "\033[0;33m  No MOTD set.\033[0m"
     fi
     msg -bar3
-    echo -e "  \033[1;37mEnter new MOTD (leave blank to clear, 0 to cancel):\033[0m"
-    echo -e "  \033[0;36m(Supports multiple lines — type END on a new line to finish)\033[0m"
+    echo -e "  \033[1;37mType your message line by line.\033[0m"
+    echo -e "  \033[0;36mType \033[1;33mEND\033[0;36m on a new line to save, \033[1;33m0\033[0;36m to cancel.\033[0m"
     msg -bar3
     local line motd_content=""
-    while IFS= read -r line; do
+    while IFS= read -rp $'  \033[1;36m>\033[0m ' line; do
       [[ $line == "0" ]] && return
       [[ $line == "END" ]] && break
       motd_content+="$line\n"
@@ -593,10 +593,11 @@ custom_messages() {
       cat /etc/issue.net
     fi
     msg -bar3
-    echo -e "  \033[1;37mEnter new SSH banner (END to finish, 0 to cancel):\033[0m"
+    echo -e "  \033[1;37mType your banner line by line.\033[0m"
+    echo -e "  \033[0;36mType \033[1;33mEND\033[0;36m on a new line to save, \033[1;33m0\033[0;36m to cancel.\033[0m"
     msg -bar3
     local line banner_content=""
-    while IFS= read -r line; do
+    while IFS= read -rp $'  \033[1;36m>\033[0m ' line; do
       [[ $line == "0" ]] && return
       [[ $line == "END" ]] && break
       banner_content+="$line\n"
