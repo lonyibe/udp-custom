@@ -566,11 +566,10 @@ custom_messages() {
       [[ $line == "END" ]] && break
       motd_content+="$line\n"
     done
-    local _restart_ssh() { systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null; }
     if [[ -z "$motd_content" ]]; then
       > /etc/motd
       sed -i 's/^PrintMotd.*/PrintMotd no/' /etc/ssh/sshd_config
-      _restart_ssh
+      systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null
       print_center -verd "✔  MOTD cleared"
     else
       echo -e "$motd_content" > /etc/motd
@@ -579,7 +578,7 @@ custom_messages() {
       else
         sed -i 's/^PrintMotd.*/PrintMotd yes/' /etc/ssh/sshd_config
       fi
-      _restart_ssh
+      systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null
       print_center -verd "✔  MOTD updated and SSH restarted"
     fi
     enter
@@ -602,11 +601,10 @@ custom_messages() {
       [[ $line == "END" ]] && break
       banner_content+="$line\n"
     done
-    local _restart_ssh() { systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null; }
     if [[ -z "$banner_content" ]]; then
       > /etc/issue.net
       sed -i '/^Banner/d' /etc/ssh/sshd_config
-      _restart_ssh
+      systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null
       print_center -verd "✔  Banner cleared and SSH restarted"
     else
       echo -e "$banner_content" > /etc/issue.net
@@ -615,7 +613,7 @@ custom_messages() {
       else
         sed -i 's|^Banner.*|Banner /etc/issue.net|' /etc/ssh/sshd_config
       fi
-      _restart_ssh
+      systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null
       print_center -verd "✔  SSH banner updated and SSH restarted"
     fi
     enter
