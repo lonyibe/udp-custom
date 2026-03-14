@@ -14,8 +14,37 @@ source "$udp_dir/module"
 
 # ── Public IP ─────────────────────────────────────────
 request_public_ip=$(grep -m1 -oE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' \
-  <<<"$(wget -T10 -t1 -4qO- "http://ip1.dynupdate.no-ip.com/" \
-     || curl -m10 -4Ls "http://ip1.dynupdate.no-ip.com/")")
+  <<<"$(wget -T10 -t1 -4qO- "http://ip1.dynupdate.no-ip.com/" 2>/dev/null \
+     || curl -m10 -4Ls "http://ip1.dynupdate.no-ip.com/" 2>/dev/null)")
+
+# ── Compat helpers ────────────────────────────────────
+# uptime -p not available on Ubuntu 14/16 — fallback
+_uptime() {
+  uptime -p 2>/dev/null | sed 's/up //' \
+    || awk '{d=int($1/86400);h=int(($1%86400)/3600);m=int(($1%3600)/60);
+             printf "%dd %dh %dm",d,h,m}' /proc/uptime
+}
+
+# nproc fallback
+_nproc() {
+  nproc 2>/dev/null || grep -c '^processor' /proc/cpuinfo
+}
+
+# ss fallback to netstat
+_listening_ports() {
+  if command -v ss &>/dev/null; then
+    ss -tlunp 2>/dev/null
+  else
+    netstat -tlunp 2>/dev/null
+  fi
+}
+
+# curl/wget fallback for ipinfo
+_fetch() {
+  curl -s --max-time 5 "$1" 2>/dev/null \
+    || wget -qO- --timeout=5 "$1" 2>/dev/null \
+    || echo "N/A"
+}
 
 # ══════════════════════════════════════════════════════
 #  BANNER
@@ -699,12 +728,13 @@ port_manager() {
   echo ""
   printf "\033[1;36m  %-10s %-10s %-15s %s\033[0m\n" "PORT" "PROTO" "SERVICE" "STATE"
   msg -bar3
-  ss -tlunp 2>/dev/null | awk 'NR>1 {
+  _listening_ports | awk 'NR>1 {
     split($5,a,":");
     port=a[length(a)];
+    if (port == "") { split($5,a,":"); port=a[length(a)] }
     printf "  \033[1;97m%-10s\033[0m \033[0;36m%-10s\033[0m \033[0;37m%-15s\033[0m \033[1;32m%s\033[0m\n",
       port, $1, $7, "LISTEN"
-  }' | sort -t$'\033' -k2 -n | head -30
+  }' | head -30
   msg -bar3
 
   local udp_port=""
@@ -812,15 +842,17 @@ vps_info() {
   local system os_arch ip region isp timezone kernel uptime cpu _core ram disk
 
   system=$(cat /etc/issue.net 2>/dev/null | head -1 | awk '{print $1,$2}')
+  [[ -z "$system" ]] && system=$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 | cut -c1-20)
   os_arch=$(uname -m)
-  ip=$(curl -s --max-time 5 ipinfo.io/ip 2>/dev/null || wget -qO- --timeout=5 ipinfo.io/ip 2>/dev/null)
-  region=$(curl -s --max-time 5 ipinfo.io/region 2>/dev/null || echo "N/A")
-  isp=$(curl -s --max-time 5 ipinfo.io/org 2>/dev/null || echo "N/A")
-  timezone=$(curl -s --max-time 5 ipinfo.io/timezone 2>/dev/null || cat /etc/timezone 2>/dev/null || echo "N/A")
+  ip=$(_fetch ipinfo.io/ip)
+  region=$(_fetch ipinfo.io/region)
+  isp=$(_fetch ipinfo.io/org)
+  timezone=$(_fetch ipinfo.io/timezone)
+  [[ "$timezone" == "N/A" ]] && timezone=$(cat /etc/timezone 2>/dev/null || echo "N/A")
   kernel=$(uname -r)
-  uptime=$(uptime -p 2>/dev/null | sed 's/up //')
-  cpu=$(top -bn1 | awk '/Cpu/ { printf "%.1f%%", 100-$8 }')
-  _core=$(nproc 2>/dev/null || grep -c 'processor' /proc/cpuinfo)
+  uptime=$(_uptime)
+  cpu=$(top -bn1 | awk '/Cpu/ { printf "%.1f%%", 100-$8 }' 2>/dev/null || echo "N/A")
+  _core=$(_nproc)
   ram=$(free -m | awk 'NR==2{printf "%.1f%% (%sMB / %sMB)", $3*100/$2, $3, $2}')
   disk=$(df -h / | awk 'NR==2{printf "%s used / %s total (%s)", $3, $2, $5}')
 
@@ -961,8 +993,8 @@ uninstall_udp_manager() {
 # ══════════════════════════════════════════════════════
 status_bar() {
   local ram cpu svc_udp svc_udpgw
-  ram=$(free -m | awk 'NR==2{printf "%.1f%%", $3*100/$2}')
-  cpu=$(top -bn1 | awk '/Cpu/ { printf "%.1f%%", 100-$8 }')
+  ram=$(free -m | awk 'NR==2{printf "%.1f%%", $3*100/$2}' 2>/dev/null || echo "N/A")
+  cpu=$(top -bn1 | awk '/Cpu/ { printf "%.1f%%", 100-$8 }' 2>/dev/null || echo "N/A")
   systemctl is-active udp-custom &>/dev/null \
     && svc_udp="\033[1;32m●\033[0m" || svc_udp="\033[1;31m●\033[0m"
   systemctl is-active udpgw &>/dev/null \
