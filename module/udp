@@ -1009,7 +1009,8 @@ status_bar() {
   systemctl is-active udpgw &>/dev/null \
     && svc_udpgw="\033[1;32m●\033[0m" || svc_udpgw="\033[1;31m●\033[0m"
 
-  echo -e "  \033[1;37mIP:\033[1;32m ${request_public_ip}  \033[1;37mRAM:\033[1;33m ${ram}  \033[1;37mCPU:\033[1;33m ${cpu}  \033[1;37mUDP:${svc_udp}  UDPGW:${svc_udpgw}\033[0m"
+  echo -e "  \033[1;37mIP:\033[1;32m ${request_public_ip}  \033[1;37mRAM:\033[1;33m ${ram}  \033[1;37mCPU:\033[1;33m ${cpu}\033[0m"
+  echo -e "  \033[1;37mUDP:${svc_udp}  \033[1;37mUDPGW:${svc_udpgw}\033[0m"
 }
 
 # ══════════════════════════════════════════════════════
